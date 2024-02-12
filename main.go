@@ -1,0 +1,97 @@
+package main
+
+import (
+	"bytes"
+	"crypto/ed25519"
+	"crypto/sha512"
+	"encoding/base32"
+	"encoding/hex"
+	"fmt"
+	"golang.org/x/crypto/sha3"
+	"log"
+	"os"
+	"strings"
+)
+
+const PREFIX = "foo"
+const NGOROUTINES = 64
+const securePerm = 0600 // equals "rw-------"
+
+var skPrefix = []byte{
+	0x3d, 0x3d, 0x20, 0x65, 0x64, 0x32, 0x35, 0x35,
+	0x31, 0x39, 0x76, 0x31, 0x2d, 0x73, 0x65, 0x63,
+	0x72, 0x65, 0x74, 0x3a, 0x20, 0x74, 0x79, 0x70,
+	0x65, 0x30, 0x20, 0x3d, 0x3d, 0x00, 0x00, 0x00,
+}
+var onionChecksum = []byte(".onion checksum")
+var version = [1]byte{3}
+
+// b32 converts an arbitrary input to a base32 encoded string
+func b32(data []byte) string {
+	buf := bytes.NewBuffer(nil)
+	encoder := base32.NewEncoder(base32.StdEncoding, buf)
+	_, _ = encoder.Write(data)
+	return strings.ToLower(buf.String())
+}
+
+// hash generates a SHA3-256 hash sum
+func hash(data []byte) []byte {
+	h := sha3.New256()
+	h.Write(data)
+	return h.Sum(nil)
+}
+
+// checksum generates the checksum as defined within the specification
+func checksum(pk ed25519.PublicKey) []byte {
+	data := append([]byte{}, onionChecksum...)
+	data = append(data, pk...)
+	data = append(data, version[:]...)
+	return hash(data)[:2]
+}
+
+// onionAddress derives the onion address from an Ed25519 public key
+func onionAddress(pk ed25519.PublicKey) string {
+	data := append([]byte{}, pk...)
+	data = append(data, checksum(pk)...)
+	data = append(data, version[:]...)
+	return b32(data) + ".onion"
+}
+
+// exportSK exports the secret key into a file with secure permissions and a correct prefix
+func exportSK(sk ed25519.PrivateKey, file string) error {
+	// this function is "Copyright (c) 2018 Chad Retz" and can be found here:
+	// https://github.com/cretz/bine/blob/b9d31d9c786616742e39a121b60522e803e96731/torutil/ed25519/ed25519.go#L39
+	digest := sha512.Sum512(sk[:32])
+	digest[0] &= 248
+	digest[31] &= 127
+	digest[31] |= 64
+	return os.WriteFile(file, append(skPrefix, digest[:]...), securePerm)
+}
+
+// worker brute-forces a key
+func worker(prefix string, ch chan ed25519.PrivateKey) {
+	for {
+		pk, sk, err := ed25519.GenerateKey(nil)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		if onionAddress(pk)[:len(prefix)] == prefix {
+			ch <- sk
+			return
+		}
+	}
+}
+
+func main() {
+	ch := make(chan ed25519.PrivateKey)
+
+	for i := 0; i < NGOROUTINES; i++ {
+		go worker(PREFIX, ch)
+	}
+
+	sk := <-ch
+	pk := sk.Public().(ed25519.PublicKey)
+	fmt.Println(onionAddress(pk))
+	fmt.Println(hex.EncodeToString(sk))
+}

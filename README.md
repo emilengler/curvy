@@ -14,7 +14,7 @@ advice for searching for vanity addresses given in the specification.
 
 ```
 $ curvy --prefix="foo" --output="./hs_ed25519_secret_key" --threads=64
-foob64oywfdxkr4mxxio4xis6lba2peoplvj64kqbpybd2n6sqq6joqd.onion
+public key: foob64oywfdxkr4mxxio4xis6lba2peoplvj64kqbpybd2n6sqq6joqd.onion
 ```
 
 ## TODO

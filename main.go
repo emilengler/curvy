@@ -5,7 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/sha512"
 	"encoding/base32"
-	"encoding/hex"
+	"flag"
 	"fmt"
 	"golang.org/x/crypto/sha3"
 	"log"
@@ -13,8 +13,6 @@ import (
 	"strings"
 )
 
-const PREFIX = "foo"
-const NGOROUTINES = 64
 const securePerm = 0600 // equals "rw-------"
 
 var skPrefix = []byte{
@@ -84,14 +82,22 @@ func worker(prefix string, ch chan ed25519.PrivateKey) {
 }
 
 func main() {
-	ch := make(chan ed25519.PrivateKey)
+	prefix := flag.String("prefix", "", "the prefix of the onion address")
+	goroutines := flag.Uint("threads", 8, "the amount of coroutines to use for parallelization")
+	output := flag.String("output", "./hs_ed25519_secret_key", "the file to store the secret key in")
+	flag.Parse()
 
-	for i := 0; i < NGOROUTINES; i++ {
-		go worker(PREFIX, ch)
+	ch := make(chan ed25519.PrivateKey)
+	for i := uint(0); i < *goroutines; i++ {
+		go worker(*prefix, ch)
 	}
 
 	sk := <-ch
 	pk := sk.Public().(ed25519.PublicKey)
 	fmt.Println(onionAddress(pk))
-	fmt.Println(hex.EncodeToString(sk))
+
+	err := exportSK(sk, *output)
+	if err != nil {
+		panic(err)
+	}
 }

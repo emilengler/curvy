@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/sha512"
 	"encoding/base32"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"golang.org/x/crypto/sha3"
@@ -98,6 +99,7 @@ func main() {
 
 	err := exportSK(sk, *output)
 	if err != nil {
+		fmt.Printf("secret key: %s\n", hex.EncodeToString(sk))
 		panic(err)
 	}
 }

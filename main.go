@@ -14,16 +14,11 @@ import (
 	"strings"
 )
 
+const onionChecksum = ".onion checksum"
+const onionTLD = ".onion"
 const securePerm = 0600 // equals "rw-------"
-
-var skPrefix = []byte{
-	0x3d, 0x3d, 0x20, 0x65, 0x64, 0x32, 0x35, 0x35,
-	0x31, 0x39, 0x76, 0x31, 0x2d, 0x73, 0x65, 0x63,
-	0x72, 0x65, 0x74, 0x3a, 0x20, 0x74, 0x79, 0x70,
-	0x65, 0x30, 0x20, 0x3d, 0x3d, 0x00, 0x00, 0x00,
-}
-var onionChecksum = []byte(".onion checksum")
-var version = [1]byte{3}
+const skPrefix = "== ed25519v1-secret: type0 ==\x00\x00\x00"
+const version = byte(3)
 
 // b32 converts an arbitrary input to a base32 encoded string
 func b32(data []byte) string {
@@ -44,7 +39,7 @@ func hash(data []byte) []byte {
 func checksum(pk ed25519.PublicKey) []byte {
 	data := append([]byte{}, onionChecksum...)
 	data = append(data, pk...)
-	data = append(data, version[:]...)
+	data = append(data, []byte{version}...)
 	return hash(data)[:2]
 }
 
@@ -52,8 +47,8 @@ func checksum(pk ed25519.PublicKey) []byte {
 func onionAddress(pk ed25519.PublicKey) string {
 	data := append([]byte{}, pk...)
 	data = append(data, checksum(pk)...)
-	data = append(data, version[:]...)
-	return b32(data) + ".onion"
+	data = append(data, []byte{version}...)
+	return b32(data) + onionTLD
 }
 
 // exportSK exports the secret key into a file with secure permissions and a correct prefix
@@ -64,7 +59,7 @@ func exportSK(sk ed25519.PrivateKey, file string) error {
 	digest[0] &= 248
 	digest[31] &= 127
 	digest[31] |= 64
-	return os.WriteFile(file, append(skPrefix, digest[:]...), securePerm)
+	return os.WriteFile(file, append([]byte(skPrefix), digest[:]...), securePerm)
 }
 
 // worker brute-forces a key

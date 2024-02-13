@@ -94,7 +94,7 @@ func main() {
 
 	sk := <-ch
 	pk := sk.Public().(ed25519.PublicKey)
-	fmt.Println(onionAddress(pk))
+	fmt.Printf("public key: %s\n", onionAddress(pk))
 
 	err := exportSK(sk, *output)
 	if err != nil {

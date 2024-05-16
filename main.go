@@ -84,7 +84,7 @@ func main() {
 	flag.Parse()
 
 	ch := make(chan ed25519.PrivateKey)
-	for i := uint(0); i < *goroutines; i++ {
+	for range *goroutines {
 		go worker(*prefix, ch)
 	}
 

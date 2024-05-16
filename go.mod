@@ -1,6 +1,6 @@
 module github.com/emilengler/curvy
 
-go 1.21.7
+go 1.22
 
 require golang.org/x/crypto v0.19.0
 
